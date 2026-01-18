@@ -1,80 +1,290 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import React, { useCallback, useMemo, useState } from 'react';
+import { useOutlineStore } from '@/stores/outlineStore';
+import type { OutlineNode } from '@/lib/outline/types';
 
-interface NavItem {
-  slug: string;
-  title: string;
-  href: string;
-  children?: NavItem[];
+// 从内容提取标题（支持 Markdown 和 HTML 格式）
+// 跳过第一个 H1 标题（因为页面顶部已有标题）
+export function extractHeadings(content: string): { level: number; text: string; id: string }[] {
+  if (!content) return [];
+  const headings: { level: number; text: string; id: string }[] = [];
+  let index = 0;
+  let firstH1Skipped = false;
+
+  // 尝试从 Markdown 格式提取 (# ## ###)
+  const mdMatches = content.matchAll(/^(#{1,3})\s+(.+)$/gm);
+  for (const match of mdMatches) {
+    const level = match[1].length;
+    const text = match[2].trim();
+
+    // 跳过第一个 H1 标题
+    if (level === 1 && !firstH1Skipped) {
+      firstH1Skipped = true;
+      continue;
+    }
+
+    headings.push({ level, text, id: `toc-${index}` });
+    index++;
+  }
+
+  // 如果没有找到 Markdown 标题，尝试从 HTML 格式提取
+  if (headings.length === 0 && !firstH1Skipped) {
+    const htmlMatches = content.matchAll(/<h([1-3])>(.*?)<\/h\1>/gi);
+    for (const match of htmlMatches) {
+      const level = parseInt(match[1]);
+      const text = match[2].replace(/<[^>]+>/g, '').trim();
+
+      if (level === 1 && !firstH1Skipped) {
+        firstH1Skipped = true;
+        continue;
+      }
+
+      if (text) {
+        headings.push({ level, text, id: `toc-${index}` });
+        index++;
+      }
+    }
+  }
+
+  return headings;
 }
 
-interface SidebarProps {
-  items: NavItem[];
-  lastUpdated?: string;
+// 文档大纲组件 - 用于悬浮显示
+export function DocumentOutline({ node, onHeadingClick }: { node: OutlineNode; onHeadingClick?: (text: string, level: number) => void }) {
+  const { selectNode, selectedNodeId } = useOutlineStore();
+
+  const headings = useMemo(() => {
+    const markdownBlocks = node.contentBlocks.filter(
+      (b): b is { type: 'markdown'; id: string; content: string } => b.type === 'markdown'
+    );
+    const allContent = markdownBlocks.map(b => b.content).join('\n');
+    return extractHeadings(allContent);
+  }, [node.contentBlocks]);
+
+  const handleClick = useCallback((text: string, level: number) => {
+    // 如果当前显示的不是这个节点，先切换到这个节点
+    if (selectedNodeId !== node.id) {
+      selectNode(node.id);
+      // 等待 DOM 更新后再滚动
+      setTimeout(() => {
+        scrollToHeading(text, level);
+      }, 100);
+    } else {
+      scrollToHeading(text, level);
+    }
+
+    onHeadingClick?.(text, level);
+  }, [selectedNodeId, node.id, selectNode, onHeadingClick]);
+
+  if (headings.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="py-2 w-40">
+      <div className="px-3 py-1.5 text-xs font-medium text-[var(--text-muted)]">本页大纲</div>
+      {headings.map((heading, index) => (
+        <button
+          key={`${heading.id}-${index}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleClick(heading.text, heading.level);
+          }}
+          className="w-full text-left px-3 py-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-gray-100 dark:hover:bg-gray-800 transition rounded-md truncate"
+          style={{ paddingLeft: `${(heading.level - 1) * 8 + 12}px` }}
+          title={heading.text}
+        >
+          {heading.text}
+        </button>
+      ))}
+    </div>
+  );
 }
 
-function NavItemComponent({ item, depth = 0 }: { item: NavItem; depth?: number }) {
-  const pathname = usePathname();
-  const [isExpanded, setIsExpanded] = useState(true);
-  const isActive = pathname === item.href;
-  const hasChildren = item.children && item.children.length > 0;
+// 滚动到指定标题
+function scrollToHeading(text: string, level: number) {
+  const contentArea = document.querySelector('.tiptap-content, .markdown-content');
+  if (!contentArea) return;
+
+  const headingElements = contentArea.querySelectorAll(`h${level}`);
+  for (const el of headingElements) {
+    const elText = el.textContent?.trim();
+    if (elText === text) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      break;
+    }
+  }
+}
+
+// 页面列表项 - 简化版，hover 时在右侧弹出大纲
+function PageItem({ node, depth = 0 }: { node: OutlineNode; depth?: number }) {
+  const { nodes, selectedNodeId, selectNode } = useOutlineStore();
+  const [showOutline, setShowOutline] = useState(false);
+  const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 });
+  const itemRef = React.useRef<HTMLDivElement>(null);
+  const hideTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const isSelected = selectedNodeId === node.id;
+  const hasChildren = node.childIds.length > 0;
+
+  // 检查是否有大纲内容
+  const hasOutline = useMemo(() => {
+    const markdownBlocks = node.contentBlocks.filter(
+      (b): b is { type: 'markdown'; id: string; content: string } => b.type === 'markdown'
+    );
+    const allContent = markdownBlocks.map(b => b.content).join('\n');
+    return extractHeadings(allContent).length > 0;
+  }, [node.contentBlocks]);
+
+  const handleMouseEnter = useCallback(() => {
+    // 清除隐藏定时器
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+    if (hasOutline && itemRef.current) {
+      const rect = itemRef.current.getBoundingClientRect();
+      setPopupPosition({
+        top: rect.top,
+        left: rect.right,
+      });
+      setShowOutline(true);
+    }
+  }, [hasOutline]);
+
+  const handleMouseLeave = useCallback(() => {
+    // 延迟隐藏，给用户时间移动到弹窗
+    hideTimeoutRef.current = setTimeout(() => {
+      setShowOutline(false);
+    }, 150);
+  }, []);
+
+  const handlePopupMouseEnter = useCallback(() => {
+    // 鼠标进入弹窗，取消隐藏
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+  }, []);
+
+  const handlePopupMouseLeave = useCallback(() => {
+    // 鼠标离开弹窗，立即隐藏
+    setShowOutline(false);
+  }, []);
 
   return (
     <div>
-      <div className={`flex items-center group ${depth > 0 ? "ml-3" : ""}`}>
-        {hasChildren && (
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="w-4 h-4 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--foreground)] mr-1"
-          >
-            <svg
-              className={`w-3 h-3 transition-transform ${isExpanded ? "rotate-90" : ""}`}
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-            </svg>
-          </button>
-        )}
-        <Link
-          href={item.href}
-          className={`flex-1 py-1.5 px-2 text-sm rounded-md transition ${
-            isActive
-              ? "nav-active"
-              : "text-[var(--foreground)] hover:bg-[var(--background)]"
-          } ${!hasChildren ? "ml-5" : ""}`}
+      <div
+        ref={itemRef}
+        className="relative"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        <div
+          className={`flex items-center py-1.5 px-2 rounded-md cursor-pointer transition-colors ${
+            isSelected
+              ? 'bg-gray-200 dark:bg-gray-700 text-[var(--foreground)]'
+              : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-[var(--foreground)]'
+          }`}
+          style={{ paddingLeft: `${depth * 16 + 12}px` }}
+          onClick={() => selectNode(node.id)}
         >
-          {item.title}
-        </Link>
+          <span className="flex-1 text-sm truncate">{node.title}</span>
+        </div>
+
+        {/* Hover 时在右侧弹出大纲 - 使用 fixed 定位避免被裁剪 */}
+        {hasOutline && showOutline && (
+          <div
+            className="fixed z-[100] bg-[var(--background)] border border-[var(--border-color)] rounded-lg shadow-lg"
+            style={{ top: popupPosition.top, left: popupPosition.left }}
+            onMouseEnter={handlePopupMouseEnter}
+            onMouseLeave={handlePopupMouseLeave}
+          >
+            <DocumentOutline node={node} />
+          </div>
+        )}
       </div>
-      {hasChildren && isExpanded && (
-        <div className={`mt-0.5 ${depth > 0 ? "pl-2 border-l border-[var(--border-color)]" : ""}`}>
-          {item.children!.map((child) => (
-            <NavItemComponent key={child.slug} item={child} depth={depth + 1} />
-          ))}
+
+      {/* 子节点始终展开 */}
+      {hasChildren && (
+        <div>
+          {node.childIds.map((childId) => {
+            const childNode = nodes[childId];
+            return childNode ? (
+              <PageItem key={childId} node={childNode} depth={depth + 1} />
+            ) : null;
+          })}
         </div>
       )}
     </div>
   );
 }
 
-export function Sidebar({ items, lastUpdated }: SidebarProps) {
+interface SidebarProps {
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+}
+
+export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps) {
+  const { nodes, rootIds, createNode } = useOutlineStore();
+
+  const handleAddRootNode = useCallback(() => {
+    createNode({
+      title: '新页面',
+      parentId: null,
+    });
+  }, [createNode]);
+
+  // 折叠状态
+  if (isCollapsed) {
+    return (
+      <div className="w-10 h-full flex flex-col items-center py-4 border-r border-[var(--border-color)] bg-[var(--background)]">
+        <button
+          onClick={onToggleCollapse}
+          className="p-2 text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
+          title="展开侧边栏"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <aside className="w-64 border-r border-[var(--border-color)] bg-[var(--background-secondary)] h-[calc(100vh-56px)] overflow-y-auto sticky top-14">
-      <div className="p-4">
-        {lastUpdated && (
-          <p className="text-xs text-[var(--text-muted)] mb-4">
-            Last updated: {lastUpdated}
-          </p>
-        )}
-        <nav className="space-y-0.5">
-          {items.map((item) => (
-            <NavItemComponent key={item.slug} item={item} />
-          ))}
-        </nav>
+    <aside className="w-60 h-full overflow-visible flex flex-col border-r border-[var(--border-color)] bg-[var(--background)]">
+      {/* 页面列表区域 - 无标题，直接显示 */}
+      <div className="flex-1 overflow-y-auto overflow-x-visible px-2 py-3">
+        {rootIds.map((id) => {
+          const node = nodes[id];
+          return node ? <PageItem key={id} node={node} /> : null;
+        })}
+
+        {/* 添加页面按钮 */}
+        <button
+          onClick={handleAddRootNode}
+          className="w-full flex items-center gap-2 px-3 py-1.5 mt-2 text-sm text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          添加页面
+        </button>
+      </div>
+
+      {/* 底部折叠按钮 */}
+      <div className="flex-shrink-0 p-2 border-t border-[var(--border-color)]">
+        <button
+          onClick={onToggleCollapse}
+          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
+        >
+          <svg className="w-4 h-4 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+          收起
+        </button>
       </div>
     </aside>
   );

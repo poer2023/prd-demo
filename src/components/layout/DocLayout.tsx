@@ -96,19 +96,19 @@ export function DocLayout({
 
   if (isFullscreen) {
     return (
-      <div className="h-screen bg-gray-50 flex flex-col">
-        <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+      <div className="h-screen bg-[var(--background)] flex flex-col">
+        <div className="bg-[var(--background)] border-b border-[var(--border-color)] px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <span className="font-medium text-gray-900">{title}</span>
+            <span className="font-medium text-[var(--foreground)]">{title}</span>
             <div className="flex items-center gap-2">
               {states.map((s) => (
                 <button
                   key={s.id}
                   onClick={() => setCurrentState(s.id)}
-                  className={`px-3 py-1 text-sm rounded-full transition ${
+                  className={`px-3 py-1 text-sm rounded-md transition ${
                     s.id === currentState
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      ? "bg-[var(--nav-active)] text-[var(--foreground)] font-medium"
+                      : "text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--nav-hover)]"
                   }`}
                 >
                   {s.label}
@@ -120,7 +120,7 @@ export function DocLayout({
             <DeviceToolbar currentDevice={currentDevice} onDeviceChange={setCurrentDevice} />
             <button
               onClick={() => setIsFullscreen(false)}
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+              className="p-2 text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--nav-hover)] rounded-md"
               title="退出全屏 (Esc)"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,7 +129,7 @@ export function DocLayout({
             </button>
           </div>
         </div>
-        <div className="flex-1 overflow-auto bg-gray-100 p-8">
+        <div className="flex-1 overflow-auto bg-[var(--background-secondary)] p-8">
           <DeviceFrame deviceId={currentDevice}>
             {children({ version: currentVersion, state: currentState })}
           </DeviceFrame>
@@ -139,95 +139,47 @@ export function DocLayout({
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[var(--background)]">
       <Header />
       <div className="flex">
         {/* 左侧边栏 */}
-        <Sidebar items={navItems} lastUpdated={lastUpdated} />
+        <Sidebar />
 
-        {/* 主内容区 */}
+        {/* 主内容区 - 也是浅灰背景 */}
         <main className="flex-1 min-w-0">
           <div className="max-w-4xl mx-auto px-8 py-8">
             {/* 页面标题 */}
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{title}</h1>
-              {description && (
-                <p className="text-gray-600">{description}</p>
-              )}
+            <h1 className="text-2xl font-semibold text-[var(--foreground)] mb-6">{title}</h1>
+
+            {/* DeepWiki 风格：折叠面板 */}
+            <div className="border border-[var(--border-color)] rounded-lg mb-8">
+              <button className="w-full px-4 py-3 flex items-center gap-2 text-sm text-[var(--text-muted)] hover:bg-[var(--nav-hover)]">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                Relevant source files
+              </button>
             </div>
 
+            {description && (
+              <p className="text-[var(--text-primary)] mb-6 leading-relaxed">{description}</p>
+            )}
+
             {/* 原型预览区 */}
-            <section id="prototype" className="mb-12">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">原型预览</h2>
-                <div className="flex items-center gap-2">
-                  <DeviceToolbar currentDevice={currentDevice} onDeviceChange={setCurrentDevice} />
-                  {versions.length > 1 && (
-                    <button
-                      onClick={() => {
-                        if (compareMode) {
-                          setCompareMode(false);
-                          setCompareVersion(null);
-                        } else {
-                          setCompareMode(true);
-                          const currentIdx = versions.findIndex(v => v.id === currentVersion);
-                          const compareIdx = currentIdx < versions.length - 1 ? currentIdx + 1 : 0;
-                          setCompareVersion(versions[compareIdx].id);
-                        }
-                      }}
-                      className={`px-3 py-1.5 text-sm rounded-lg transition ${
-                        compareMode
-                          ? "bg-orange-500 text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      {compareMode ? "退出对比" : "对比"}
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setIsFullscreen(true)}
-                    className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
-                    title="全屏预览 (F)"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
+            <section id="prototype" className="mb-10">
+              <h2 className="text-xl font-semibold text-[var(--foreground)] mb-4">原型预览</h2>
 
-              {/* 状态切换 */}
-              {states.length > 0 && (
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-sm text-gray-500">状态：</span>
-                  {states.map((s) => (
-                    <button
-                      key={s.id}
-                      onClick={() => setCurrentState(s.id)}
-                      className={`px-3 py-1 text-sm rounded-full transition ${
-                        s.id === currentState
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* 版本切换 */}
-              {versions.length > 0 && !compareMode && (
-                <div className="flex items-center gap-2 mb-6">
-                  <span className="text-sm text-gray-500">版本：</span>
+              {/* 版本切换 - Tab 样式 */}
+              {versions.length > 0 && (
+                <div className="flex items-center gap-1 mb-4">
                   {versions.map((v) => (
                     <button
                       key={v.id}
                       onClick={() => setCurrentVersion(v.id)}
-                      className={`px-3 py-1 text-sm rounded-full transition ${
+                      className={`px-4 py-2 text-sm rounded-md transition ${
                         v.id === currentVersion
-                          ? "bg-green-600 text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          ? "bg-[var(--nav-active-bg)] text-[var(--foreground)] font-medium"
+                          : "text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--nav-hover)]"
                       }`}
                     >
                       {v.label}
@@ -236,58 +188,27 @@ export function DocLayout({
                 </div>
               )}
 
-              {/* 原型展示 */}
-              <div className="bg-gray-50 rounded-xl border border-gray-200 p-6">
-                {compareMode && compareVersion ? (
-                  <div className="flex gap-6">
-                    <div className="flex-1">
-                      <div className="text-center mb-3">
-                        <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full">
-                          {versions.find(v => v.id === currentVersion)?.label}
-                        </span>
-                      </div>
-                      <div className="bg-white rounded-lg p-4 flex items-center justify-center min-h-[300px]">
-                        {children({ version: currentVersion, state: currentState })}
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-center mb-3">
-                        <select
-                          value={compareVersion}
-                          onChange={(e) => setCompareVersion(e.target.value)}
-                          className="px-3 py-1 bg-orange-100 text-orange-700 text-sm rounded-full border-none cursor-pointer"
-                        >
-                          {versions.filter(v => v.id !== currentVersion).map(v => (
-                            <option key={v.id} value={v.id}>{v.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="bg-white rounded-lg p-4 flex items-center justify-center min-h-[300px]">
-                        {children({ version: compareVersion, state: currentState })}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <DeviceFrame deviceId={currentDevice}>
-                    {children({ version: currentVersion, state: currentState })}
-                  </DeviceFrame>
-                )}
+              {/* 原型展示 - 细边框卡片 */}
+              <div className="border border-[var(--border-color)] rounded-lg p-6 bg-[var(--background)]">
+                <DeviceFrame deviceId={currentDevice}>
+                  {children({ version: currentVersion, state: currentState })}
+                </DeviceFrame>
               </div>
             </section>
 
             {/* 决策日志 */}
             {decisions.length > 0 && (
-              <section id="decisions" className="mb-12">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">决策日志</h2>
-                <div className="space-y-4">
+              <section id="decisions" className="mb-10">
+                <h2 className="text-xl font-semibold text-[var(--foreground)] mb-4">决策日志</h2>
+                <div>
                   {decisions.map((d, i) => (
                     <div
                       key={i}
                       id={`decision-${i}`}
-                      className="flex gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200"
+                      className="flex gap-4 py-3 border-b border-[var(--border-color)] last:border-b-0"
                     >
-                      <div className="text-sm text-gray-400 whitespace-nowrap">{d.date}</div>
-                      <div className="text-sm text-gray-700">{d.content}</div>
+                      <div className="text-sm text-[var(--text-secondary)] whitespace-nowrap">{d.date}</div>
+                      <div className="text-sm text-[var(--text-primary)]">{d.content}</div>
                     </div>
                   ))}
                 </div>

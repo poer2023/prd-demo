@@ -29,8 +29,8 @@ export function LoginForm({
   if (variant === "v1") {
     // V1: 验证码按钮在输入框下方（旧方案）
     return (
-      <div className="w-full max-w-sm mx-auto p-6 border rounded-xl bg-white shadow-sm">
-        <h2 className="text-xl font-semibold mb-6 text-center text-gray-800">
+      <div className="w-full max-w-sm mx-auto p-6 border border-[var(--border-color)] rounded-xl bg-[var(--background-secondary)] shadow-sm">
+        <h2 className="text-xl font-semibold mb-6 text-center text-[var(--foreground)]">
           登录
         </h2>
 
@@ -40,7 +40,7 @@ export function LoginForm({
             placeholder="请输入手机号"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] bg-[var(--background)]"
           />
 
           <input
@@ -48,7 +48,7 @@ export function LoginForm({
             placeholder="请输入验证码"
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] bg-[var(--background)]"
           />
 
           {/* V1 问题：按钮在下方，用户不容易发现 */}
@@ -77,8 +77,8 @@ export function LoginForm({
 
   // V2: 验证码按钮在输入框内（新方案）
   return (
-    <div className="w-full max-w-sm mx-auto p-6 border rounded-xl bg-white shadow-sm">
-      <h2 className="text-xl font-semibold mb-6 text-center text-gray-800">
+    <div className="w-full max-w-sm mx-auto p-6 border border-[var(--border-color)] rounded-xl bg-[var(--background-secondary)] shadow-sm">
+      <h2 className="text-xl font-semibold mb-6 text-center text-[var(--foreground)]">
         登录
       </h2>
 
@@ -88,7 +88,7 @@ export function LoginForm({
           placeholder="请输入手机号"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-4 py-3 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] bg-[var(--background)]"
         />
 
         {/* V2 改进：验证码按钮内嵌在输入框右侧 */}
@@ -98,7 +98,7 @@ export function LoginForm({
             placeholder="请输入验证码"
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            className="w-full px-4 py-3 pr-28 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 pr-28 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] bg-[var(--background)]"
           />
           <button
             disabled={isCountingDown}

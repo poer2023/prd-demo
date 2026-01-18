@@ -1,107 +1,136 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-/* DeepWiki 风格配色 */
+/* DeepWiki 风格 - 精确还原 */
 :root {
-  /* 背景色系 */
-  --background: #f8f4e6;
-  --background-secondary: #fffaf0;
+  --background: #f8f7f6;
+  --background-content: #ffffff;
   --foreground: #333333;
 
-  /* 主色调 */
-  --accent-primary: #9b7cb9;
-  --accent-secondary: #d7c4bb;
-  --highlight: #e8927c;
+  --accent-primary: #2563eb;
+  --border-color: #e5e5e5;
+  --shadow-color: rgba(0, 0, 0, 0.04);
 
-  /* 边框和阴影 */
-  --border-color: #e0d8c8;
-  --shadow-color: rgba(0, 0, 0, 0.05);
+  --text-primary: #333333;
+  --text-muted: #6b7280;
+  --text-secondary: #9ca3af;
 
-  /* 文字层次 */
-  --text-muted: #a59e8c;
-  --link-color: #7c5aa0;
+  --nav-hover: #f3f2f1;
+  --nav-active-bg: #eeeeed;
+  --nav-active-border: #d1d5db;
 }
 
-/* 深色模式 */
 [data-theme='dark'] {
-  --background: #1a1a1a;
-  --background-secondary: #222222;
-  --foreground: #f0f0f0;
+  --background: #0a0a0a;
+  --background-content: #141414;
+  --foreground: #fafafa;
 
-  --accent-primary: #9370db;
-  --accent-secondary: #5d4037;
-  --highlight: #e57373;
+  --accent-primary: #3b82f6;
+  --border-color: #262626;
+  --shadow-color: rgba(0, 0, 0, 0.3);
 
-  --border-color: #2c2c2c;
-  --shadow-color: rgba(0, 0, 0, 0.2);
+  --text-primary: #e5e5e5;
+  --text-muted: #a3a3a3;
+  --text-secondary: #737373;
 
-  --text-muted: #8c8c8c;
-  --link-color: #b19cd9;
+  --nav-hover: #1a1a1a;
+  --nav-active-bg: #262626;
+  --nav-active-border: #404040;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Noto Sans SC", "Inter", -apple-system, sans-serif;
-  --font-mono: "Geist Mono", monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "SF Mono", "Fira Code", monospace;
 }
 
 body {
   background: var(--background);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+/* 标题样式 */
+h1 {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.4;
   color: var(--foreground);
-  font-family: var(--font-sans), sans-serif;
 }
 
-/* 卡片样式 */
-.card {
-  background-color: var(--background-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 0.5rem;
-  transition: all 0.2s ease;
+h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--foreground);
 }
 
-.card:hover {
-  box-shadow: 0 4px 12px var(--shadow-color);
+/* 侧边栏选中态 - DeepWiki 风格：浅灰背景 + 圆角，无边框 */
+.nav-active {
+  background-color: #e8e8e8;
+  border-radius: 4px;
+  color: var(--foreground);
 }
 
-/* 按钮样式 */
+/* 按钮 */
 .btn-primary {
   background-color: var(--accent-primary);
   color: white;
-  border-radius: 0.375rem;
-  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  padding: 6px 14px;
   font-weight: 500;
-  transition: all 0.2s ease;
+  font-size: 14px;
 }
 
 .btn-primary:hover {
   opacity: 0.9;
 }
 
-/* 导航选中态 */
-.nav-active {
-  background-color: color-mix(in srgb, var(--accent-primary) 20%, transparent);
-  color: var(--accent-primary);
-  border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);
+/* 次要按钮 - DeepWiki 风格 */
+.btn-secondary {
+  background-color: #f2f1f0;
+  color: var(--foreground);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-weight: 400;
+  font-size: 14px;
 }
 
-/* 输入框 */
-.input {
-  background-color: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 0.375rem;
-  padding: 0.5rem 1rem;
-  transition: all 0.2s ease;
+.btn-secondary:hover {
+  background-color: #eaeae9;
 }
 
-.input:focus {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 20%, transparent);
-  outline: none;
+/* 代码块样式 - 覆盖 highlight.js 默认样式 */
+pre, pre.hljs {
+  background: #dedede !important;
+  color: #1e1e1e !important;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 0.75rem;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
 }
 
-/* 纸质纹理背景 */
-.paper-texture {
-  background-color: var(--background-secondary);
-  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3z' fill='%23e0d8c8' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E");
+pre code {
+  background: transparent !important;
+  color: inherit !important;
+  padding: 0;
+}
+
+/* 暗色模式代码块 */
+[data-theme='dark'] pre,
+[data-theme='dark'] pre.hljs {
+  background: #2a2a2a !important;
+  color: #d4d4d4 !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  pre, pre.hljs {
+    background: #2a2a2a !important;
+    color: #d4d4d4 !important;
+  }
 }
