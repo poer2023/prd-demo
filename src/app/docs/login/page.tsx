@@ -2,6 +2,7 @@
 
 import { DocLayout } from "@/components/layout";
 import { LoginForm } from "@/components/ui";
+import { getDocsNavTree } from "@/config/docs";
 
 export default function LoginPage() {
   return (
@@ -26,6 +27,8 @@ export default function LoginPage() {
         { date: "01-12", content: "完成 V1 方案设计，验证码按钮放在输入框下方" },
         { date: "01-10", content: "启动登录优化项目，目标转化率提升至 75%" },
       ]}
+      navItems={getDocsNavTree()}
+      lastUpdated="2024-01-18"
     >
       {({ version, state }) => (
         <LoginForm

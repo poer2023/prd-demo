@@ -1,27 +1,107 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* DeepWiki 风格配色 */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* 背景色系 */
+  --background: #f8f4e6;
+  --background-secondary: #fffaf0;
+  --foreground: #333333;
+
+  /* 主色调 */
+  --accent-primary: #9b7cb9;
+  --accent-secondary: #d7c4bb;
+  --highlight: #e8927c;
+
+  /* 边框和阴影 */
+  --border-color: #e0d8c8;
+  --shadow-color: rgba(0, 0, 0, 0.05);
+
+  /* 文字层次 */
+  --text-muted: #a59e8c;
+  --link-color: #7c5aa0;
+}
+
+/* 深色模式 */
+[data-theme='dark'] {
+  --background: #1a1a1a;
+  --background-secondary: #222222;
+  --foreground: #f0f0f0;
+
+  --accent-primary: #9370db;
+  --accent-secondary: #5d4037;
+  --highlight: #e57373;
+
+  --border-color: #2c2c2c;
+  --shadow-color: rgba(0, 0, 0, 0.2);
+
+  --text-muted: #8c8c8c;
+  --link-color: #b19cd9;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: "Noto Sans SC", "Inter", -apple-system, sans-serif;
+  --font-mono: "Geist Mono", monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), sans-serif;
+}
+
+/* 卡片样式 */
+.card {
+  background-color: var(--background-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+/* 按钮样式 */
+.btn-primary {
+  background-color: var(--accent-primary);
+  color: white;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+/* 导航选中态 */
+.nav-active {
+  background-color: color-mix(in srgb, var(--accent-primary) 20%, transparent);
+  color: var(--accent-primary);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+
+/* 输入框 */
+.input {
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  transition: all 0.2s ease;
+}
+
+.input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 20%, transparent);
+  outline: none;
+}
+
+/* 纸质纹理背景 */
+.paper-texture {
+  background-color: var(--background-secondary);
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3z' fill='%23e0d8c8' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E");
 }

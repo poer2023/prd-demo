@@ -17,16 +17,16 @@ export function DeviceFrame({ deviceId, children }: DeviceFrameProps) {
   return (
     <div className="flex items-center justify-center w-full h-full">
       <div
-        className="bg-white rounded-3xl shadow-2xl border-8 border-gray-800 overflow-hidden"
+        className="bg-[var(--background-secondary)] rounded-3xl shadow-xl border-8 border-[#333] overflow-hidden"
         style={{
           width: device.width,
           height: device.height,
         }}
       >
-        <div className="h-6 bg-gray-800 flex items-center justify-center">
-          <div className="w-16 h-1 bg-gray-600 rounded-full" />
+        <div className="h-6 bg-[#333] flex items-center justify-center">
+          <div className="w-16 h-1 bg-[#555] rounded-full" />
         </div>
-        <div className="h-[calc(100%-24px)] overflow-auto bg-white">
+        <div className="h-[calc(100%-24px)] overflow-auto bg-[var(--background-secondary)]">
           {children}
         </div>
       </div>
