@@ -671,6 +671,13 @@ interface Project {
   };
 };
 
+// 批量变更操作类型
+export interface BatchOperation {
+  type: 'create' | 'update' | 'delete';
+  nodeId?: string;
+  params?: CreateNodeParams | UpdateNodeParams;
+}
+
 interface OutlineActions {
   // 节点选择
   selectNode: (nodeId: string | null) => void;
@@ -709,6 +716,16 @@ interface OutlineActions {
 
   // 获取扁平化的节点列表（按照树结构顺序）
   getFlattenedNodes: () => OutlineNode[];
+
+  // === 版本管理相关 ===
+  // 获取当前状态快照
+  getSnapshot: () => { nodes: Record<string, OutlineNode>; rootIds: string[] };
+
+  // 从快照恢复状态（用于回滚）
+  restoreFromSnapshot: (snapshot: { nodes: Record<string, OutlineNode>; rootIds: string[] }) => void;
+
+  // 批量应用变更
+  applyBatchChanges: (operations: BatchOperation[]) => string[];
 }
 
 type OutlineStore = OutlineState & OutlineActions;
@@ -1046,5 +1063,139 @@ export const useOutlineStore = create<OutlineStore>((set, get) => ({
 
     traverse(rootIds);
     return result;
+  },
+
+  // === 版本管理相关 ===
+
+  // 获取当前状态快照
+  getSnapshot: () => {
+    const { nodes, rootIds } = get();
+    return {
+      nodes: JSON.parse(JSON.stringify(nodes)), // Deep clone
+      rootIds: [...rootIds],
+    };
+  },
+
+  // 从快照恢复状态（用于回滚）
+  restoreFromSnapshot: (snapshot) => {
+    set({
+      nodes: JSON.parse(JSON.stringify(snapshot.nodes)),
+      rootIds: [...snapshot.rootIds],
+      selectedNodeId: null, // 重置选择
+    });
+  },
+
+  // 批量应用变更
+  applyBatchChanges: (operations) => {
+    const createdIds: string[] = [];
+    const now = new Date().toISOString();
+
+    set((state) => {
+      const newNodes = { ...state.nodes };
+      let newRootIds = [...state.rootIds];
+
+      for (const op of operations) {
+        switch (op.type) {
+          case 'create': {
+            if (!op.params) continue;
+            const params = op.params as CreateNodeParams;
+            const id = generateId();
+            createdIds.push(id);
+
+            const parentId = params.parentId ?? null;
+            const parent = parentId ? newNodes[parentId] : null;
+            const level = parent ? parent.level + 1 : 0;
+
+            let order = 0;
+            if (params.afterNodeId && parentId && parent) {
+              const siblings = parent.childIds || [];
+              const afterIndex = siblings.indexOf(params.afterNodeId);
+              order = afterIndex >= 0 ? afterIndex + 1 : siblings.length;
+            } else if (parentId && parent) {
+              order = parent.childIds.length;
+            } else {
+              order = newRootIds.length;
+            }
+
+            const newNode: OutlineNode = {
+              id,
+              title: params.title,
+              level,
+              order,
+              parentId,
+              flowType: params.flowType || 'page',
+              contentBlocks: [
+                { type: 'markdown', id: `block_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`, content: `## ${params.title}\n\n描述...` }
+              ],
+              childIds: [],
+              createdAt: now,
+              updatedAt: now,
+            };
+
+            newNodes[id] = newNode;
+
+            if (parentId && parent) {
+              const newChildIds = [...parent.childIds];
+              newChildIds.splice(order, 0, id);
+              newNodes[parentId] = { ...parent, childIds: newChildIds, updatedAt: now };
+            } else {
+              newRootIds.splice(order, 0, id);
+            }
+            break;
+          }
+
+          case 'update': {
+            if (!op.nodeId || !op.params) continue;
+            const params = op.params as UpdateNodeParams;
+            const node = newNodes[op.nodeId];
+            if (!node) continue;
+
+            newNodes[op.nodeId] = {
+              ...node,
+              ...(params.title !== undefined && { title: params.title }),
+              ...(params.flowType !== undefined && { flowType: params.flowType }),
+              ...(params.contentBlocks !== undefined && { contentBlocks: params.contentBlocks }),
+              updatedAt: now,
+            };
+            break;
+          }
+
+          case 'delete': {
+            if (!op.nodeId) continue;
+            const node = newNodes[op.nodeId];
+            if (!node) continue;
+
+            // 递归获取所有后代节点 ID
+            const getAllDescendants = (id: string): string[] => {
+              const n = newNodes[id];
+              if (!n) return [];
+              return [id, ...n.childIds.flatMap(getAllDescendants)];
+            };
+
+            const idsToDelete = getAllDescendants(op.nodeId);
+            idsToDelete.forEach((id) => delete newNodes[id]);
+
+            // 从父节点移除
+            if (node.parentId) {
+              const parent = newNodes[node.parentId];
+              if (parent) {
+                newNodes[node.parentId] = {
+                  ...parent,
+                  childIds: parent.childIds.filter((id) => id !== op.nodeId),
+                  updatedAt: now,
+                };
+              }
+            } else {
+              newRootIds = newRootIds.filter((id) => id !== op.nodeId);
+            }
+            break;
+          }
+        }
+      }
+
+      return { nodes: newNodes, rootIds: newRootIds };
+    });
+
+    return createdIds;
   },
 }));

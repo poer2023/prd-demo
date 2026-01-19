@@ -112,7 +112,61 @@ ${context.existingContent || '(无)'}
 请输出优化后的完整内容。`;
 }
 
-export type PromptType = 'prd' | 'prototype' | 'continue' | 'refine' | 'custom';
+/**
+ * 文档编辑的 Prompt（AI 驱动的需求修改）
+ */
+export function getDocEditPrompt(context: PromptContext): string {
+  return `你是一个专业的产品文档助手，负责根据用户需求修改产品需求文档。
+
+## 当前文档上下文
+${context.existingContent || '(无)'}
+
+## 你的任务
+根据用户的需求描述，生成结构化的修改指令。
+
+## 输出格式
+请以 JSON 格式输出修改指令，格式如下：
+
+\`\`\`json
+{
+  "instructions": [
+    {
+      "target": {
+        "nodeId": "目标节点ID",
+        "blockId": "目标内容块ID（可选）"
+      },
+      "operation": "create_node | update_node | delete_node | create_block | update_block | delete_block",
+      "data": {
+        "title": "新标题（可选）",
+        "content": "新内容（可选）",
+        "flowType": "page | action | decision | subprocess（可选）",
+        "blockType": "markdown | interaction | acceptance（可选）",
+        "parentId": "父节点ID（创建节点时可选）",
+        "afterNodeId": "在此节点后插入（创建节点时可选）"
+      },
+      "reason": "修改原因说明"
+    }
+  ],
+  "summary": "修改摘要（一句话概述）",
+  "affectedNodeIds": ["受影响的节点ID列表"],
+  "reasoning": "详细的修改思路说明"
+}
+\`\`\`
+
+## 规则
+1. 仔细分析用户需求，理解其意图
+2. 基于现有文档结构进行修改，保持一致性
+3. 如果需要创建新内容，选择合适的位置
+4. 提供清晰的修改原因
+5. 修改内容应该专业、简洁、可操作
+
+## 注意
+- 只输出 JSON 代码块，不要输出其他内容
+- 确保 nodeId 和 blockId 来自文档上下文中的真实 ID
+- 如果无法确定具体操作，可以在 reasoning 中说明疑问`;
+}
+
+export type PromptType = 'prd' | 'prototype' | 'continue' | 'refine' | 'edit' | 'custom';
 
 export function getPrompt(type: PromptType, context: PromptContext): string {
   switch (type) {
@@ -124,6 +178,8 @@ export function getPrompt(type: PromptType, context: PromptContext): string {
       return getContinueWritingPrompt(context);
     case 'refine':
       return getRefineContentPrompt(context);
+    case 'edit':
+      return getDocEditPrompt(context);
     case 'custom':
     default:
       return '你是一个专业的产品设计助手，请帮助用户解答问题。';
