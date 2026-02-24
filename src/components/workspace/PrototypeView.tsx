@@ -183,10 +183,12 @@ function PrototypeFullView({
 
   const Component = prototypeConfig.component;
 
-  // 直接展示原型，无边框无导航栏，占满容器
+  // 直接展示原型，无边框无导航栏，占满容器，允许滚动
   return (
-    <div className="h-full w-full flex items-center justify-center bg-[var(--background)]">
-      <Component {...(prototypeConfig.defaultProps || {})} />
+    <div className="h-full w-full overflow-auto bg-[var(--background)]">
+      <div className="min-h-full flex items-center justify-center p-4">
+        <Component {...(prototypeConfig.defaultProps || {})} />
+      </div>
     </div>
   );
 }

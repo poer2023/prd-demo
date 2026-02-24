@@ -9,3 +9,6 @@ export { TelegramProjectPrototype } from './TelegramProjectPrototype';
 export { TelegramMessagesPrototype } from './TelegramMessagesPrototype';
 export { DesktopMetricsPrototype } from './DesktopMetricsPrototype';
 export { DesktopSimulatorPrototype } from './DesktopSimulatorPrototype';
+
+// EssayPass Prototypes
+export { EssayPassPrototype } from './essaypass';

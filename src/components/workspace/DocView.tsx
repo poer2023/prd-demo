@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useAuth } from '@/hooks/useAuth';
 import { useOutlineStore } from '@/stores/outlineStore';
 import type { OutlineNode, ContentBlock, MarkdownBlock, InteractionBlock, AcceptanceBlock, PrototypeRefBlock as PrototypeRefBlockType, DocRefBlock as DocRefBlockType } from '@/lib/outline/types';
 import { PrototypeRefBlock } from '@/components/blocks/PrototypeRefBlock';
@@ -46,6 +47,7 @@ const flowTypeLabels: Record<OutlineNode['flowType'], { label: string; color: st
 // Markdown block renderer - 支持查看和编辑模式
 function MarkdownBlockRenderer({ block, nodeId }: { block: MarkdownBlock; nodeId: string }) {
   const { updateContentBlock } = useOutlineStore();
+  const { isLoggedIn } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [rawContent, setRawContent] = useState(block.content);
 
@@ -123,9 +125,6 @@ function MarkdownBlockRenderer({ block, nodeId }: { block: MarkdownBlock; nodeId
   }
 
   // 查看模式
-  // TODO: 从全局状态获取登录状态，这里暂时默认为 true
-  const isLoggedIn = true;
-
   return (
     <div className="mb-4 relative group">
       {hasMermaid ? (
@@ -134,19 +133,22 @@ function MarkdownBlockRenderer({ block, nodeId }: { block: MarkdownBlock; nodeId
           content={block.content}
           className="prose-content"
           isLoggedIn={isLoggedIn}
-          onEditMermaid={() => setIsEditing(true)}
+          onEditMermaid={isLoggedIn ? () => setIsEditing(true) : undefined}
         />
       ) : (
-        // 普通内容：点击进入编辑
-        <div onClick={() => setIsEditing(true)} className="cursor-text">
+        // 普通内容：登录状态下点击进入编辑
+        <div onClick={isLoggedIn ? () => setIsEditing(true) : undefined} className={isLoggedIn ? "cursor-text" : ""}>
           <TiptapEditor
             content={block.content}
-            onChange={(content) => updateContentBlock(nodeId, block.id, { content })}
+            onChange={isLoggedIn ? (content) => updateContentBlock(nodeId, block.id, { content }) : undefined}
             placeholder="输入内容，选中文字显示格式工具栏..."
+            readOnly={!isLoggedIn}
           />
-          <div className="absolute top-2 right-2 px-2 py-1 text-xs text-[var(--text-muted)] bg-[var(--background)] border border-[var(--border-color)] rounded opacity-0 group-hover:opacity-100 transition pointer-events-none">
-            点击编辑
-          </div>
+          {isLoggedIn && (
+            <div className="absolute top-2 right-2 px-2 py-1 text-xs text-[var(--text-muted)] bg-[var(--background)] border border-[var(--border-color)] rounded opacity-0 group-hover:opacity-100 transition pointer-events-none">
+              点击编辑
+            </div>
+          )}
         </div>
       )}
     </div>
