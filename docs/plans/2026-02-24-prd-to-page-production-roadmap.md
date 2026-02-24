@@ -100,7 +100,8 @@
 
 当前进展:
 - 已完成: Schema Gate、traceability gate、interaction replay gate、CI 阻断工作流（`test:all-gates`）。
-- 待完成: Playwright 交互回归、视觉回归截图基线。
+- 已完成（初版）: Playwright 交互回归与视觉回归脚手架、CI 回归 job。
+- 待完成: 视觉 baseline 治理策略（固定基线库与评审流程）、更多关键路径用例。
 
 ## Phase F: 现有内容迁移与收敛
 

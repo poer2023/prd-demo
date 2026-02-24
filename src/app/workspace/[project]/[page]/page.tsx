@@ -418,9 +418,10 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
       </div>
 
       {isOutlineDrivenProject && (currentView === 'prototype' || currentView === 'split') && (
-        <div className="fixed right-4 top-36 z-30 flex items-center gap-1 rounded-lg border border-gray-200 bg-white p-1 shadow-md dark:border-gray-700 dark:bg-gray-800">
+        <div data-testid="prototype-mode-switch" className="fixed right-4 top-36 z-30 flex items-center gap-1 rounded-lg border border-gray-200 bg-white p-1 shadow-md dark:border-gray-700 dark:bg-gray-800">
           <button
             onClick={() => handlePrototypeModeChange('static')}
+            data-testid="prototype-mode-static"
             className={`px-3 py-1.5 text-xs rounded-md transition ${
               prototypeMode === 'static'
                 ? 'bg-[var(--nav-hover)] text-[var(--foreground)]'
@@ -432,6 +433,7 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
           </button>
           <button
             onClick={() => handlePrototypeModeChange('runtime')}
+            data-testid="prototype-mode-runtime"
             className={`px-3 py-1.5 text-xs rounded-md transition ${
               prototypeMode === 'runtime'
                 ? 'bg-[var(--nav-hover)] text-[var(--foreground)]'

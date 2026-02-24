@@ -1,5 +1,9 @@
-# E2E Regression Placeholder
+# E2E Regression
 
-Phase E 下一步在本目录接入 Playwright 交互回归用例。
+Phase E 交互回归用例位于本目录，当前入口:
 
-当前 CI gate 由 `pnpm test:all-gates` 执行（schema/traceability/replay）。
+- `runtime-regression.spec.js`
+
+执行命令:
+
+- `pnpm test:e2e`

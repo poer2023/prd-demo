@@ -422,6 +422,7 @@ export function RuntimePrototypeView({ node, mode }: RuntimePrototypeViewProps) 
 
   const runtimeContent = (
     <div
+      data-testid="runtime-canvas"
       className="space-y-4 rounded-xl border p-4"
       style={{
         ...toStyleVars(cssVariables),
@@ -468,9 +469,9 @@ export function RuntimePrototypeView({ node, mode }: RuntimePrototypeViewProps) 
   }
 
   return (
-    <div className="h-full w-full overflow-auto bg-[var(--background)]">
+    <div data-testid="runtime-prototype-view" className="h-full w-full overflow-auto bg-[var(--background)]">
       <div className="grid min-h-full grid-cols-1 gap-4 p-4 xl:grid-cols-[320px,1fr]">
-        <aside className="space-y-3 rounded-xl border border-[var(--border-color)] bg-[var(--nav-hover)] p-3">
+        <aside data-testid="runtime-controls" className="space-y-3 rounded-xl border border-[var(--border-color)] bg-[var(--nav-hover)] p-3">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-medium text-[var(--foreground)]">Runtime Controls</h4>
             <button
@@ -513,7 +514,7 @@ export function RuntimePrototypeView({ node, mode }: RuntimePrototypeViewProps) 
             />
           </div>
 
-          <div className="rounded-md border bg-white p-2 text-xs">
+          <div data-testid="runtime-spec-diff" className="rounded-md border bg-white p-2 text-xs">
             <div className="mb-1 font-medium">Locked Nodes</div>
             {lockedNodeIds.size === 0 ? (
               <div className="text-[var(--text-muted)]">Shift+Click node to lock.</div>
@@ -528,7 +529,7 @@ export function RuntimePrototypeView({ node, mode }: RuntimePrototypeViewProps) 
             )}
           </div>
 
-          <div className="rounded-md border bg-white p-2 text-xs">
+          <div data-testid="runtime-traces" className="rounded-md border bg-white p-2 text-xs">
             <div className="mb-1 font-medium">Spec Diff</div>
             <div className="grid grid-cols-2 gap-1">
               <span>pages +{session.diffSummary.summary.pagesAdded}</span>
@@ -543,7 +544,7 @@ export function RuntimePrototypeView({ node, mode }: RuntimePrototypeViewProps) 
             </div>
           </div>
 
-          <div className="rounded-md border bg-white p-2 text-xs">
+          <div data-testid="runtime-replay" className="rounded-md border bg-white p-2 text-xs">
             <div className="mb-1 font-medium">PRD Traces</div>
             <div className="max-h-44 space-y-1 overflow-auto">
               {session.traceMap.entries.map((entry) => (

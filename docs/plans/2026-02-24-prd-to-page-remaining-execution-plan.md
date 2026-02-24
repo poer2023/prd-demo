@@ -4,7 +4,7 @@
 
 - 基线日期: 2026-02-24
 - 已完成: Phase A、Phase B、Phase C、Phase D
-- 进行中: Phase E（Schema/Traceability/Replay gate + CI 阻断已完成）
+- 进行中: Phase E（Schema/Traceability/Replay gate + CI 阻断 + Playwright 初版已完成）
 - 代码基线: `main` 分支，提交 `ea4680d`
 
 ## 2. 并行推进策略（可多 Agent 同步）
@@ -62,8 +62,8 @@ DoD:
 - Schema Gate（已完成）。
 - Traceability + Replay Gate（已完成）。
 - CI 发布阻断（已完成）。
-- Playwright 交互回归（待完成）。
-- 视觉回归（截图基线，待完成）。
+- Playwright 交互回归（已完成初版）。
+- 视觉回归（已完成初版，待补稳定基线治理）。
 
 DoD:
 - 任一 gate 失败时，发布流水线阻断。
