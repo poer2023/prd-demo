@@ -140,9 +140,12 @@ function MarkdownBlockRenderer({ block, nodeId }: { block: MarkdownBlock; nodeId
         <div onClick={isLoggedIn ? () => setIsEditing(true) : undefined} className={isLoggedIn ? "cursor-text" : ""}>
           <TiptapEditor
             content={block.content}
-            onChange={isLoggedIn ? (content) => updateContentBlock(nodeId, block.id, { content }) : undefined}
+            onChange={(content) => {
+              if (!isLoggedIn) return;
+              updateContentBlock(nodeId, block.id, { content });
+            }}
             placeholder="输入内容，选中文字显示格式工具栏..."
-            readOnly={!isLoggedIn}
+            editable={isLoggedIn}
           />
           {isLoggedIn && (
             <div className="absolute top-2 right-2 px-2 py-1 text-xs text-[var(--text-muted)] bg-[var(--background)] border border-[var(--border-color)] rounded opacity-0 group-hover:opacity-100 transition pointer-events-none">
