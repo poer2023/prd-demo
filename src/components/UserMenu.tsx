@@ -1,22 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface UserMenuProps {
   showLoginLink?: boolean;
 }
 
 export function UserMenu({ showLoginLink = false }: UserMenuProps) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userName, setUserName] = useState("");
+  const [isLoggedIn] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("protodoc_logged_in") === "true";
+  });
+  const [userName] = useState(() => {
+    if (typeof window === "undefined") return "User";
+    return localStorage.getItem("protodoc_user_name") || "User";
+  });
   const [showMenu, setShowMenu] = useState(false);
-
-  useEffect(() => {
-    const loggedIn = localStorage.getItem("protodoc_logged_in") === "true";
-    const name = localStorage.getItem("protodoc_user_name") || "User";
-    setIsLoggedIn(loggedIn);
-    setUserName(name);
-  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("protodoc_logged_in");

@@ -5,8 +5,8 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import type { InteractionDemo, DemoStep } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import type { InteractionDemo } from '../types';
 import { useDesignSystem } from '../design-systems/hooks';
 import { ComponentRenderer } from './ComponentRenderer';
 
@@ -26,41 +26,21 @@ export function InteractionDemoPlayer({
   const designSystem = useDesignSystem();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
-  const [highlightedId, setHighlightedId] = useState<string | undefined>();
 
   const currentStep = demo.demoSteps[currentStepIndex];
   const totalSteps = demo.demoSteps.length;
-
-  // 执行当前步骤
-  const executeStep = useCallback((step: DemoStep) => {
-    switch (step.action) {
-      case 'highlight':
-        setHighlightedId(step.targetId);
-        break;
-      case 'click':
-        // 模拟点击高亮
-        setHighlightedId(step.targetId);
-        break;
-      case 'input':
-        // 模拟输入
-        setHighlightedId(step.targetId);
-        break;
-      case 'wait':
-        // 等待
-        break;
-      case 'showResult':
-        // 显示结果
-        setHighlightedId(undefined);
-        break;
-    }
-  }, []);
+  const highlightedId = useMemo(() => {
+    const step = demo.demoSteps[currentStepIndex];
+    if (!step) return undefined;
+    if (step.action === 'showResult' || step.action === 'wait') return undefined;
+    return step.targetId;
+  }, [demo.demoSteps, currentStepIndex]);
 
   // 自动播放逻辑
   useEffect(() => {
     if (!isPlaying || totalSteps === 0) return;
 
     const step = demo.demoSteps[currentStepIndex];
-    executeStep(step);
 
     const duration = step.duration || 1500;
     const timer = setTimeout(() => {
@@ -74,7 +54,7 @@ export function InteractionDemoPlayer({
     }, duration);
 
     return () => clearTimeout(timer);
-  }, [isPlaying, currentStepIndex, totalSteps, loop, demo.demoSteps, executeStep]);
+  }, [isPlaying, currentStepIndex, totalSteps, loop, demo.demoSteps]);
 
   // 手动控制
   const handlePlayPause = () => {
@@ -83,21 +63,18 @@ export function InteractionDemoPlayer({
 
   const handleReset = () => {
     setCurrentStepIndex(0);
-    setHighlightedId(undefined);
     setIsPlaying(false);
   };
 
   const handleNext = () => {
     if (currentStepIndex < totalSteps - 1) {
       setCurrentStepIndex(currentStepIndex + 1);
-      executeStep(demo.demoSteps[currentStepIndex + 1]);
     }
   };
 
   const handlePrev = () => {
     if (currentStepIndex > 0) {
       setCurrentStepIndex(currentStepIndex - 1);
-      executeStep(demo.demoSteps[currentStepIndex - 1]);
     }
   };
 

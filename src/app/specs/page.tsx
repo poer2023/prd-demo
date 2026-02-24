@@ -1,28 +1,24 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { parseMarkdownSpec } from "@/lib/specs/parser";
 import { saveSpec, getSpecList, deleteSpec, setActiveSpec, getActiveSpecId } from "@/lib/specs/store";
 import type { DesignSpec, DesignSpecSummary } from "@/lib/specs/types";
 
 export default function SpecsPage() {
-  const [specs, setSpecs] = useState<DesignSpecSummary[]>([]);
-  const [activeSpecId, setActiveSpecId] = useState<string | null>(null);
+  const [specs, setSpecs] = useState<DesignSpecSummary[]>(() => getSpecList());
+  const [activeSpecId, setActiveSpecId] = useState<string | null>(() => getActiveSpecId());
   const [showImport, setShowImport] = useState(false);
   const [importContent, setImportContent] = useState("");
   const [importName, setImportName] = useState("");
   const [previewSpec, setPreviewSpec] = useState<DesignSpec | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const loadSpecs = useCallback(() => {
+  const refreshSpecs = () => {
     setSpecs(getSpecList());
     setActiveSpecId(getActiveSpecId());
-  }, []);
-
-  useEffect(() => {
-    loadSpecs();
-  }, [loadSpecs]);
+  };
 
   const handleParse = () => {
     setError(null);
@@ -42,13 +38,13 @@ export default function SpecsPage() {
     setImportContent("");
     setImportName("");
     setPreviewSpec(null);
-    loadSpecs();
+    refreshSpecs();
   };
 
   const handleDelete = (id: string) => {
     if (confirm("Delete this spec?")) {
       deleteSpec(id);
-      loadSpecs();
+      refreshSpecs();
     }
   };
 

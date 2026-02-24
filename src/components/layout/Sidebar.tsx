@@ -1,8 +1,13 @@
 "use client";
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { useOutlineStore } from '@/stores/outlineStore';
+import { getNavTreeByProject } from '@/config/docs';
 import type { OutlineNode } from '@/lib/outline/types';
+
+// 文档大纲缓存 - 避免重复请求
+const outlineCache = new Map<string, { level: number; text: string; id: string }[]>();
 
 // 从内容提取标题（支持 Markdown 和 HTML 格式）
 // 跳过第一个 H1 标题（因为页面顶部已有标题）
@@ -221,13 +226,207 @@ function PageItem({ node, depth = 0 }: { node: OutlineNode; depth?: number }) {
   );
 }
 
+interface NavItem {
+  slug: string;
+  title: string;
+  href: string;
+  children?: NavItem[];
+}
+
 interface SidebarProps {
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  navItems?: NavItem[];
+  projectSlug?: string;
 }
 
-export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps) {
+// 静态文档大纲组件 - 用于悬浮显示（从 API 获取内容）
+function StaticDocumentOutline({
+  projectSlug,
+  pageSlug,
+  onHeadingClick
+}: {
+  projectSlug: string;
+  pageSlug: string;
+  onHeadingClick?: (text: string, level: number) => void;
+}) {
+  const [headings, setHeadings] = useState<{ level: number; text: string; id: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const cacheKey = `${projectSlug}/${pageSlug}`;
+
+    // 检查缓存
+    if (outlineCache.has(cacheKey)) {
+      setHeadings(outlineCache.get(cacheKey)!);
+      setLoading(false);
+      return;
+    }
+
+    // 从 API 获取文档内容
+    async function fetchOutline() {
+      try {
+        const res = await fetch(`/api/doc?project=${projectSlug}&page=${pageSlug}`);
+        const data = await res.json();
+
+        if (res.ok && data.content) {
+          const extracted = extractHeadings(data.content);
+          outlineCache.set(cacheKey, extracted);
+          setHeadings(extracted);
+        }
+      } catch (e) {
+        console.error('Failed to fetch outline:', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchOutline();
+  }, [projectSlug, pageSlug]);
+
+  const handleClick = useCallback((text: string, level: number) => {
+    // 滚动到对应标题
+    scrollToHeading(text, level);
+    onHeadingClick?.(text, level);
+  }, [onHeadingClick]);
+
+  if (loading) {
+    return (
+      <div className="py-2 w-40">
+        <div className="px-3 py-1.5 text-xs font-medium text-[var(--text-muted)]">加载中...</div>
+      </div>
+    );
+  }
+
+  if (headings.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="py-2 w-40">
+      <div className="px-3 py-1.5 text-xs font-medium text-[var(--text-muted)]">本页大纲</div>
+      {headings.map((heading, index) => (
+        <button
+          key={`${heading.id}-${index}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            handleClick(heading.text, heading.level);
+          }}
+          className="w-full text-left px-3 py-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-gray-100 dark:hover:bg-gray-800 transition rounded-md truncate"
+          style={{ paddingLeft: `${(heading.level - 1) * 8 + 12}px` }}
+          title={heading.text}
+        >
+          {heading.text}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// 静态导航项组件 - 支持 workspace 路由和 hover 大纲
+function StaticNavItem({ item, depth = 0, currentPath, projectSlug }: { item: NavItem; depth?: number; currentPath: string; projectSlug?: string }) {
+  // 如果有 projectSlug，生成 workspace 路由
+  const href = projectSlug ? `/workspace/${projectSlug}/${item.slug}` : item.href;
+  const isActive = currentPath === href || currentPath.includes(`/${item.slug}`);
+  const hasChildren = item.children && item.children.length > 0;
+
+  // Hover 大纲状态
+  const [showOutline, setShowOutline] = useState(false);
+  const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 });
+  const itemRef = React.useRef<HTMLDivElement>(null);
+  const hideTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = useCallback(() => {
+    // 清除隐藏定时器
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+    if (projectSlug && itemRef.current) {
+      const rect = itemRef.current.getBoundingClientRect();
+      setPopupPosition({
+        top: rect.top,
+        left: rect.right,
+      });
+      setShowOutline(true);
+    }
+  }, [projectSlug]);
+
+  const handleMouseLeave = useCallback(() => {
+    // 延迟隐藏，给用户时间移动到弹窗
+    hideTimeoutRef.current = setTimeout(() => {
+      setShowOutline(false);
+    }, 150);
+  }, []);
+
+  const handlePopupMouseEnter = useCallback(() => {
+    // 鼠标进入弹窗，取消隐藏
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+  }, []);
+
+  const handlePopupMouseLeave = useCallback(() => {
+    // 鼠标离开弹窗，立即隐藏
+    setShowOutline(false);
+  }, []);
+
+  return (
+    <div>
+      <div
+        ref={itemRef}
+        className="relative"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        <a
+          href={href}
+          className={`flex items-center py-1.5 px-2 rounded-md cursor-pointer transition-colors ${
+            isActive
+              ? 'bg-gray-200 dark:bg-gray-700 text-[var(--foreground)]'
+              : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-[var(--foreground)]'
+          }`}
+          style={{ paddingLeft: `${depth * 16 + 12}px` }}
+        >
+          <span className="flex-1 text-sm truncate">{item.title}</span>
+        </a>
+
+        {/* Hover 时在右侧弹出大纲 - 使用 fixed 定位避免被裁剪 */}
+        {projectSlug && showOutline && (
+          <div
+            className="fixed z-[100] bg-[var(--background)] border border-[var(--border-color)] rounded-lg shadow-lg"
+            style={{ top: popupPosition.top, left: popupPosition.left }}
+            onMouseEnter={handlePopupMouseEnter}
+            onMouseLeave={handlePopupMouseLeave}
+          >
+            <StaticDocumentOutline projectSlug={projectSlug} pageSlug={item.slug} />
+          </div>
+        )}
+      </div>
+
+      {hasChildren && (
+        <div>
+          {item.children!.map((child) => (
+            <StaticNavItem key={child.slug} item={child} depth={depth + 1} currentPath={currentPath} projectSlug={projectSlug} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function Sidebar({ isCollapsed = false, onToggleCollapse, navItems, projectSlug }: SidebarProps) {
   const { nodes, rootIds, createNode } = useOutlineStore();
+  const pathname = usePathname();
+
+  // 根据 projectSlug 获取项目导航树
+  const projectNavItems = useMemo(() => {
+    if (navItems && navItems.length > 0) return navItems;
+    if (projectSlug) return getNavTreeByProject(projectSlug);
+    return [];
+  }, [navItems, projectSlug]);
 
   const handleAddRootNode = useCallback(() => {
     createNode({
@@ -255,23 +454,35 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
 
   return (
     <aside className="w-60 h-full overflow-visible flex flex-col border-r border-[var(--border-color)] bg-[var(--background)]">
-      {/* 页面列表区域 - 无标题，直接显示 */}
+      {/* 页面列表区域 */}
       <div className="flex-1 overflow-y-auto overflow-x-visible px-2 py-3">
-        {rootIds.map((id) => {
-          const node = nodes[id];
-          return node ? <PageItem key={id} node={node} /> : null;
-        })}
+        {/* 如果有项目导航，使用静态导航 */}
+        {projectNavItems.length > 0 ? (
+          <>
+            {projectNavItems.map((item) => (
+              <StaticNavItem key={item.slug} item={item} currentPath={pathname} projectSlug={projectSlug} />
+            ))}
+          </>
+        ) : (
+          <>
+            {/* 否则使用 outlineStore 的动态导航 */}
+            {rootIds.map((id) => {
+              const node = nodes[id];
+              return node ? <PageItem key={id} node={node} /> : null;
+            })}
 
-        {/* 添加页面按钮 */}
-        <button
-          onClick={handleAddRootNode}
-          className="w-full flex items-center gap-2 px-3 py-1.5 mt-2 text-sm text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          添加页面
-        </button>
+            {/* 添加页面按钮 */}
+            <button
+              onClick={handleAddRootNode}
+              className="w-full flex items-center gap-2 px-3 py-1.5 mt-2 text-sm text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              添加页面
+            </button>
+          </>
+        )}
       </div>
 
       {/* 底部折叠按钮 */}

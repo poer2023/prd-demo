@@ -813,7 +813,7 @@ export const useOutlineStore = create<OutlineStore>((set, get) => ({
 
     set((state) => {
       const newNodes = { ...state.nodes, [id]: newNode };
-      let newRootIds = [...state.rootIds];
+      const newRootIds = [...state.rootIds];
 
       if (parentId) {
         // 添加到父节点的 childIds

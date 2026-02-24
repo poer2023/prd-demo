@@ -16,10 +16,6 @@ export function FlowMinimap({ isCollapsed = false, onToggleCollapse }: FlowMinim
     return convertOutlineToSimpleFlow(nodes, rootIds);
   }, [nodes, rootIds]);
 
-  if (isCollapsed) {
-    return null;
-  }
-
   // 计算节点位置
   const nodePositions = useMemo(() => {
     const positions: Record<string, { x: number; y: number }> = {};
@@ -57,6 +53,10 @@ export function FlowMinimap({ isCollapsed = false, onToggleCollapse }: FlowMinim
 
     return { positions, height };
   }, [flowNodes]);
+
+  if (isCollapsed) {
+    return null;
+  }
 
   return (
     <div className="border-t border-[var(--border-color)] p-3">
