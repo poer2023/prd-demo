@@ -85,7 +85,7 @@ function buildTraces(pages: PageSpec[]): RequirementTrace[] {
       traces.push({
         requirementId: `req_${traceIndex}`,
         text: criterion,
-        references: [{ pageId: page.id }],
+        references: [{ pageId: page.id, nodeId: page.root.id }],
       });
     }
 
@@ -94,7 +94,13 @@ function buildTraces(pages: PageSpec[]): RequirementTrace[] {
       traces.push({
         requirementId: `req_${traceIndex}`,
         text: interaction.name,
-        references: [{ pageId: page.id, interactionId: interaction.id }],
+        references: [
+          {
+            pageId: page.id,
+            nodeId: interaction.targetNodeId || page.root.id,
+            interactionId: interaction.id,
+          },
+        ],
       });
     }
   }
@@ -206,14 +212,16 @@ export function compilePrdToProtoSpec(source: PrdSource): CompilerOutput {
     };
     const pageSlug = slugify(page.title);
     const pageId = `${source.projectId}_page_${index + 1}_${pageSlug}`;
+    const root = buildRootComponent(page, pageSlug, semanticSignals, warnings);
+    const interactions = buildInteractions(page, pageSlug, root);
 
     return {
       id: pageId,
       slug: pageSlug,
       title: page.title,
       summary: page.summary,
-      root: buildRootComponent(page, pageSlug, semanticSignals, warnings),
-      interactions: buildInteractions(page, pageSlug),
+      root,
+      interactions,
       acceptanceCriteria:
         page.acceptanceCriteria.length > 0
           ? page.acceptanceCriteria
