@@ -1,8 +1,10 @@
 "use client";
 
-import { useSplitStore, type WorkspaceView } from '@/stores/splitStore';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
-const viewModes: { id: WorkspaceView; label: string; icon: React.ReactNode }[] = [
+type ViewMode = 'doc' | 'prototype' | 'split';
+
+const viewModes: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
   {
     id: 'doc',
     label: '文档',
@@ -33,20 +35,28 @@ const viewModes: { id: WorkspaceView; label: string; icon: React.ReactNode }[] =
 ];
 
 export function ViewSwitcher() {
-  const { workspaceView, setWorkspaceView, openSplit } = useSplitStore();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  const handleViewChange = (viewId: WorkspaceView) => {
-    if (viewId === 'split') {
-      // Open split view with equal ratio
-      openSplit({
-        mode: 'equal',
-        leftRatio: 0.5,
-        leftContent: 'doc',
-        rightContent: 'prototype',
-      });
+  // 从 URL 获取当前视图模式，默认为 doc
+  const currentView = (searchParams.get('view') as ViewMode) || 'doc';
+
+  const handleViewChange = (viewId: ViewMode) => {
+    // 构建新的 URL
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (viewId === 'doc') {
+      // doc 是默认值，移除 view 参数
+      params.delete('view');
     } else {
-      setWorkspaceView(viewId);
+      params.set('view', viewId);
     }
+
+    const queryString = params.toString();
+    const newUrl = queryString ? `${pathname}?${queryString}` : pathname;
+
+    router.push(newUrl);
   };
 
   return (
@@ -56,7 +66,7 @@ export function ViewSwitcher() {
           key={mode.id}
           onClick={() => handleViewChange(mode.id)}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition ${
-            workspaceView === mode.id
+            currentView === mode.id
               ? 'bg-[var(--background)] text-[var(--foreground)] shadow-sm'
               : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
           }`}

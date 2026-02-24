@@ -10,6 +10,15 @@ export interface Project {
 
 export const projects: Project[] = [
   {
+    id: "0",
+    name: "C2ME",
+    description: "企业级协作平台 - Telegram Bot、命令系统、消息处理、权限管理",
+    slug: "c2me",
+    visibility: "public",
+    color: "#fde68a", // 淡黄
+    updatedAt: "2025-01-19",
+  },
+  {
     id: "1",
     name: "登录优化",
     description: "优化登录转化率，将验证码按钮从输入框下方移到输入框内部",
@@ -35,6 +44,15 @@ export const projects: Project[] = [
     visibility: "private",
     color: "#fecaca", // 淡红
     updatedAt: "2024-01-10",
+  },
+  {
+    id: "4",
+    name: "EssayPass",
+    description: "AI 论文写作助手 - 从需求到成稿的一站式解决方案",
+    slug: "essaypass",
+    visibility: "public",
+    color: "#a5f3fc", // 淡青
+    updatedAt: "2025-01-19",
   },
 ];
 
