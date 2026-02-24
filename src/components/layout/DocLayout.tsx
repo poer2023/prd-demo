@@ -49,6 +49,7 @@ interface DocLayoutProps {
   navItems?: NavItem[];
   tocItems?: TOCItem[];
   lastUpdated?: string;
+  projectSlug?: string; // 项目标识，用于切换侧边栏导航
 }
 
 export function DocLayout({
@@ -63,6 +64,7 @@ export function DocLayout({
   navItems = [],
   tocItems = [],
   lastUpdated,
+  projectSlug,
 }: DocLayoutProps) {
   const [currentVersion, setCurrentVersion] = useState(defaultVersion || versions[0]?.id);
   const [currentState, setCurrentState] = useState(defaultState || states[0]?.id);
@@ -139,14 +141,16 @@ export function DocLayout({
   }
 
   return (
-    <div className="min-h-screen bg-[var(--background)]">
+    <div className="h-screen flex flex-col bg-[var(--background)]">
       <Header />
-      <div className="flex">
-        {/* 左侧边栏 */}
-        <Sidebar />
+      <div className="flex flex-1 min-h-0">
+        {/* 左侧边栏 - 固定不滚动 */}
+        <div className="flex-shrink-0">
+          <Sidebar navItems={navItems} projectSlug={projectSlug} />
+        </div>
 
-        {/* 主内容区 - 也是浅灰背景 */}
-        <main className="flex-1 min-w-0">
+        {/* 主内容区 - 唯一可滚动区域 */}
+        <main className="flex-1 min-w-0 overflow-y-auto">
           <div className="max-w-4xl mx-auto px-8 py-8">
             {/* 页面标题 */}
             <h1 className="text-2xl font-semibold text-[var(--foreground)] mb-6">{title}</h1>
