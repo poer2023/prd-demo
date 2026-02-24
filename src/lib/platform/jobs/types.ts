@@ -16,6 +16,9 @@ export interface CompileJobPayload {
 export interface CompileJobResult {
   specId: string;
   warnings: CompilerWarning[];
+  confidence: number;
+  needsHumanReview: boolean;
+  reviewReasons: string[];
 }
 
 export interface CompileJobRecord {

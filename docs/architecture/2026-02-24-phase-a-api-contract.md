@@ -39,7 +39,10 @@ Response `200`:
     "status": "succeeded",
     "result": {
       "specId": "spec_...",
-      "warnings": []
+      "warnings": [],
+      "confidence": 0.92,
+      "needsHumanReview": false,
+      "reviewReasons": []
     },
     "error": null
   }

@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:compiler": "node --experimental-strip-types --loader ./scripts/ts-path-loader.mjs --test src/lib/prd-compiler/__tests__/compiler.templates.test.ts src/lib/prd-compiler/__tests__/compiler.stability.test.ts"
   },
   "dependencies": {
     "@mdx-js/loader": "^3.1.1",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from 'react';
+import type { OutlineNode } from '@/lib/outline/types';
 import { useOutlineStore } from '@/stores/outlineStore';
 import {
   TelegramCommandsPrototype,
@@ -11,6 +12,7 @@ import {
   DesktopMetricsPrototype,
   DesktopSimulatorPrototype,
 } from '@/components/prototypes';
+import { RuntimePrototypeView } from '@/components/workspace/RuntimePrototypeView';
 
 interface PrototypeViewProps {
   mode: 'full' | 'thumbnail';
@@ -64,7 +66,7 @@ const prototypeRegistry: Record<string, {
 };
 
 // 根据节点内容推断原型ID
-function inferPrototypeId(nodeId?: string, nodes?: Record<string, { title: string }>): string | null {
+function inferPrototypeId(nodeId?: string, nodes?: Record<string, OutlineNode>): string | null {
   if (!nodeId || !nodes) return null;
   const node = nodes[nodeId];
   if (!node) return null;
@@ -99,14 +101,45 @@ function inferPrototypeId(nodeId?: string, nodes?: Record<string, { title: strin
   return null;
 }
 
+function resolveRuntimeNode(
+  prototypeId: string | undefined,
+  selectedNodeId: string | null,
+  nodes: Record<string, OutlineNode>
+): OutlineNode | null {
+  if (prototypeId?.startsWith('runtime:')) {
+    const runtimeNodeId = prototypeId.replace(/^runtime:/, '');
+    const runtimeNode = nodes[runtimeNodeId];
+    return runtimeNode || null;
+  }
+
+  if (prototypeId) {
+    return null;
+  }
+
+  if (selectedNodeId) {
+    const selectedNode = nodes[selectedNodeId];
+    if (selectedNode?.flowType === 'page') {
+      return selectedNode;
+    }
+  }
+
+  return null;
+}
+
 // 缩略图视图 - 缩小版不可交互预览
 function PrototypeThumbnailView({
   prototypeId,
-  prototypeName
+  prototypeName,
+  runtimeNode,
 }: {
   prototypeId: string;
   prototypeName: string;
+  runtimeNode: OutlineNode | null;
 }) {
+  if (runtimeNode) {
+    return <RuntimePrototypeView node={runtimeNode} mode="thumbnail" />;
+  }
+
   const prototypeConfig = prototypeRegistry[prototypeId];
 
   if (!prototypeConfig) {
@@ -159,11 +192,15 @@ function PrototypeThumbnailView({
 // 完整视图 - 可交互的原型编辑器（无上下导航栏，直接展示原型）
 function PrototypeFullView({
   prototypeId,
+  runtimeNode,
 }: {
   prototypeId: string;
-  prototypeName: string;
-  onClose?: () => void;
+  runtimeNode: OutlineNode | null;
 }) {
+  if (runtimeNode) {
+    return <RuntimePrototypeView node={runtimeNode} mode="full" />;
+  }
+
   const prototypeConfig = prototypeRegistry[prototypeId];
 
   // 空状态
@@ -195,9 +232,19 @@ function PrototypeFullView({
 
 export function PrototypeView({ mode, prototypeId, onClose }: PrototypeViewProps) {
   const { nodes, selectedNodeId } = useOutlineStore();
+  void onClose;
+
+  const runtimeNode = useMemo(
+    () => resolveRuntimeNode(prototypeId, selectedNodeId, nodes),
+    [prototypeId, selectedNodeId, nodes]
+  );
 
   // 确定要显示的原型
   const resolvedPrototypeId = useMemo(() => {
+    if (runtimeNode) {
+      return null;
+    }
+
     // 优先使用传入的 prototypeId
     if (prototypeId && prototypeRegistry[prototypeId]) {
       return prototypeId;
@@ -207,12 +254,12 @@ export function PrototypeView({ mode, prototypeId, onClose }: PrototypeViewProps
     if (inferred) return inferred;
     // 默认显示命令系统
     return 'telegram-commands';
-  }, [prototypeId, selectedNodeId, nodes]);
+  }, [prototypeId, selectedNodeId, nodes, runtimeNode]);
 
-  const prototypeName = prototypeRegistry[resolvedPrototypeId]?.name || '原型';
+  const prototypeName = runtimeNode?.title || (resolvedPrototypeId ? prototypeRegistry[resolvedPrototypeId]?.name : null) || '原型';
 
   // 空状态
-  if (!resolvedPrototypeId) {
+  if (!resolvedPrototypeId && !runtimeNode) {
     return (
       <div className="h-full flex items-center justify-center bg-[var(--background)]">
         <div className="text-center text-[var(--text-muted)]">
@@ -230,14 +277,14 @@ export function PrototypeView({ mode, prototypeId, onClose }: PrototypeViewProps
     <div className="h-full bg-[var(--background)]">
       {mode === 'thumbnail' ? (
         <PrototypeThumbnailView
-          prototypeId={resolvedPrototypeId}
+          prototypeId={resolvedPrototypeId || ''}
           prototypeName={prototypeName}
+          runtimeNode={runtimeNode}
         />
       ) : (
         <PrototypeFullView
-          prototypeId={resolvedPrototypeId}
-          prototypeName={prototypeName}
-          onClose={onClose}
+          prototypeId={resolvedPrototypeId || ''}
+          runtimeNode={runtimeNode}
         />
       )}
     </div>

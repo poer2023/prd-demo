@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState, useMemo, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -63,6 +63,7 @@ const PrototypeView = dynamic(
 );
 
 type ViewMode = 'doc' | 'prototype' | 'split';
+type PrototypeMode = 'static' | 'runtime';
 
 interface WorkspacePageProps {
   params: Promise<{
@@ -218,7 +219,15 @@ function DocContentView({ project, page }: { project: string; page: string }) {
 }
 
 // 统一的原型视图 - 根据项目类型选择
-function PrototypeContentView({ project, page }: { project: string; page: string }) {
+function PrototypeContentView({
+  project,
+  page,
+  prototypeMode,
+}: {
+  project: string;
+  page: string;
+  prototypeMode: PrototypeMode;
+}) {
   // C2ME 项目使用 PrototypeView，根据页面推断原型ID
   if (project === 'c2me') {
     // 页面到原型ID的映射
@@ -232,7 +241,9 @@ function PrototypeContentView({ project, page }: { project: string; page: string
       'simulator': 'desktop-simulator',
     };
 
-    const prototypeId = pageToPrototypeId[page];
+    const staticPrototypeId = pageToPrototypeId[page];
+    const runtimeNodeId = c2mePageToNodeId[page] || 'node_overview';
+    const prototypeId = prototypeMode === 'runtime' ? `runtime:${runtimeNodeId}` : staticPrototypeId;
 
     return (
       <div className="h-full">
@@ -271,6 +282,8 @@ function PrototypeContentView({ project, page }: { project: string; page: string
 
 export default function WorkspacePage({ params }: WorkspacePageProps) {
   const { project, page } = use(params);
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const isOutlineDrivenProject = project === 'c2me';
 
@@ -287,6 +300,20 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
   // 从 URL query 获取视图模式，默认为 doc
   const viewFromUrl = (searchParams.get('view') as ViewMode) || 'doc';
   const currentView = viewFromUrl;
+  const prototypeMode = (searchParams.get('proto') as PrototypeMode) || 'static';
+
+  const handlePrototypeModeChange = useCallback((mode: PrototypeMode) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (mode === 'static') {
+      params.delete('proto');
+    } else {
+      params.set('proto', mode);
+    }
+
+    const queryString = params.toString();
+    const nextUrl = queryString ? `${pathname}?${queryString}` : pathname;
+    router.push(nextUrl);
+  }, [pathname, router, searchParams]);
 
   const existingContent = useMemo(() => {
     if (!selectedNodeId) return '';
@@ -373,7 +400,7 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
         {/* 原型模式 */}
         {currentView === 'prototype' && (
           <main className="flex-1 min-w-0 overflow-auto">
-            <PrototypeContentView project={project} page={page} />
+            <PrototypeContentView project={project} page={page} prototypeMode={prototypeMode} />
           </main>
         )}
 
@@ -384,11 +411,38 @@ export default function WorkspacePage({ params }: WorkspacePageProps) {
               leftRatio={splitRatio}
               onRatioChange={setSplitRatio}
               leftContent={<DocContentView project={project} page={page} />}
-              rightContent={<PrototypeContentView project={project} page={page} />}
+              rightContent={<PrototypeContentView project={project} page={page} prototypeMode={prototypeMode} />}
             />
           </main>
         )}
       </div>
+
+      {isOutlineDrivenProject && (currentView === 'prototype' || currentView === 'split') && (
+        <div className="fixed right-4 top-36 z-30 flex items-center gap-1 rounded-lg border border-gray-200 bg-white p-1 shadow-md dark:border-gray-700 dark:bg-gray-800">
+          <button
+            onClick={() => handlePrototypeModeChange('static')}
+            className={`px-3 py-1.5 text-xs rounded-md transition ${
+              prototypeMode === 'static'
+                ? 'bg-[var(--nav-hover)] text-[var(--foreground)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
+            }`}
+            title="使用手写静态原型组件"
+          >
+            Static
+          </button>
+          <button
+            onClick={() => handlePrototypeModeChange('runtime')}
+            className={`px-3 py-1.5 text-xs rounded-md transition ${
+              prototypeMode === 'runtime'
+                ? 'bg-[var(--nav-hover)] text-[var(--foreground)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
+            }`}
+            title="使用 PRD -> ProtoSpec -> Runtime 渲染"
+          >
+            Runtime
+          </button>
+        </div>
+      )}
 
       {isOutlineDrivenProject && (
         <button

@@ -42,12 +42,31 @@ export interface NormalizedPrd {
   globalAcceptanceCriteria: string[];
 }
 
+export type PageTemplateType = "form" | "list" | "detail";
+
+export interface PageClassification {
+  template: PageTemplateType;
+  hasFormRequirement: boolean;
+  hasListRequirement: boolean;
+}
+
+export interface PageSemanticSignals extends PageClassification {
+  inferredFields: string[];
+}
+
 export interface CompilerWarning {
   code: string;
   message: string;
 }
 
+export interface CompilerReviewReport {
+  confidence: number;
+  needsHumanReview: boolean;
+  reasons: string[];
+}
+
 export interface CompilerOutput {
   spec: ProtoSpec;
   warnings: CompilerWarning[];
+  review: CompilerReviewReport;
 }

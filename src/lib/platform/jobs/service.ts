@@ -87,6 +87,9 @@ export class CompilerJobService {
           job.result = {
             specId: output.spec.id,
             warnings: output.warnings,
+            confidence: output.review.confidence,
+            needsHumanReview: output.review.needsHumanReview,
+            reviewReasons: output.review.reasons,
           };
           job.error = null;
           job.updatedAt = nowIso();

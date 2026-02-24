@@ -2,18 +2,28 @@ import {
   DEFAULT_DESIGN_TOKENS,
   PROTO_SPEC_VERSION,
   validateProtoSpec,
-  type ComponentNode,
   type DesignTokens,
-  type InteractionAction,
-  type InteractionSpec,
   type PageSpec,
   type ProtoSpec,
   type RequirementTrace,
 } from "@/lib/protospec";
-import { PrdCompilerError } from "./errors";
+import { PRD_COMPILER_ERROR_CODES, PrdCompilerError } from "./errors";
 import { normalizePrdDocument } from "./normalizer";
 import { parsePrdSource } from "./parser";
-import type { CompilerOutput, CompilerWarning, NormalizedPrdPage, PrdSource } from "./types";
+import { resolveGlobalStyleConflicts, resolvePageConflicts } from "./conflicts/resolver";
+import { guardEnrichmentSuggestion } from "./enrichment/guard";
+import { generateEnrichmentSuggestion } from "./enrichment/service";
+import { buildRootComponent } from "./rules/component-extractor";
+import { inferFieldNames } from "./rules/field-extractor";
+import { buildInteractions } from "./rules/flow-extractor";
+import { classifyPage } from "./rules/page-classifier";
+import type {
+  CompilerOutput,
+  CompilerReviewReport,
+  CompilerWarning,
+  PageSemanticSignals,
+  PrdSource,
+} from "./types";
 
 function stableHash(input: string): string {
   let hash = 2166136261;
@@ -35,118 +45,6 @@ function slugify(input: string): string {
     .trim()
     .replace(/[^\u4e00-\u9fa5a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "") || "page";
-}
-
-function inferFieldNames(requirements: string[]): string[] {
-  const fields: string[] = [];
-  for (const requirement of requirements) {
-    const match = requirement.match(/(?:字段|field|input)[:：]\s*([a-zA-Z0-9_\-\u4e00-\u9fa5]+)/i);
-    if (match?.[1]) fields.push(match[1]);
-  }
-  return fields;
-}
-
-function createComponentNode(
-  id: string,
-  type: ComponentNode["type"],
-  name: string,
-  props: ComponentNode["props"],
-  children: ComponentNode[] = []
-): ComponentNode {
-  return { id, type, name, props, children };
-}
-
-function buildRootComponent(page: NormalizedPrdPage, warnings: CompilerWarning[]): ComponentNode {
-  const rootId = `${slugify(page.title)}_root`;
-  const inferredFields = inferFieldNames(page.requirements);
-
-  const hasFormRequirement = page.requirements.some((item) => /(表单|form|input|submit)/i.test(item));
-  const hasListRequirement = page.requirements.some((item) => /(列表|list|table|card)/i.test(item));
-
-  const heading = createComponentNode(
-    `${rootId}_heading`,
-    "Heading",
-    "pageHeading",
-    { text: page.title, level: 1 }
-  );
-  const summary = createComponentNode(
-    `${rootId}_summary`,
-    "Text",
-    "pageSummary",
-    { text: page.summary }
-  );
-
-  if (hasFormRequirement) {
-    const formFields =
-      inferredFields.length > 0
-        ? inferredFields
-        : ["topic", "description", "submit"];
-    if (inferredFields.length === 0) {
-      warnings.push({
-        code: "FORM_FIELD_INFERRED_DEFAULT",
-        message: `Page "${page.title}" has form-like requirements but no explicit fields. Applied default fields.`,
-      });
-    }
-
-    const formChildren = formFields.map((fieldName, index) =>
-      createComponentNode(
-        `${rootId}_field_${index + 1}`,
-        /submit|提交/i.test(fieldName) ? "Button" : "Input",
-        fieldName,
-        /submit|提交/i.test(fieldName)
-          ? { label: fieldName, role: "submit" }
-          : { label: fieldName, name: slugify(fieldName), placeholder: `Enter ${fieldName}` }
-      )
-    );
-
-    const form = createComponentNode(
-      `${rootId}_form`,
-      "Container",
-      "formContainer",
-      { role: "form", gap: "md" },
-      formChildren
-    );
-
-    return createComponentNode(rootId, "Page", page.title, { layout: "single-column" }, [heading, summary, form]);
-  }
-
-  if (hasListRequirement) {
-    const listItems = page.requirements.slice(0, 5).map((item, index) =>
-      createComponentNode(`${rootId}_list_item_${index + 1}`, "ListItem", `item${index + 1}`, { text: item })
-    );
-    const list = createComponentNode(`${rootId}_list`, "List", "mainList", { ordered: false }, listItems);
-    return createComponentNode(rootId, "Page", page.title, { layout: "single-column" }, [heading, summary, list]);
-  }
-
-  return createComponentNode(rootId, "Page", page.title, { layout: "single-column" }, [heading, summary]);
-}
-
-function buildInteractions(page: NormalizedPrdPage): InteractionSpec[] {
-  const interactions: InteractionSpec[] = [];
-
-  page.interactions.forEach((raw, index) => {
-    const interactionId = `${slugify(page.title)}_int_${index + 1}`;
-    const [left, right] = raw.split(/->|=>|→/).map((part) => part.trim());
-    const event = left || `event_${index + 1}`;
-    const target = right || "state_change";
-
-    const action: InteractionAction = {
-      id: `${interactionId}_action_1`,
-      type: /navigate|跳转/i.test(target) ? "navigate" : "set_state",
-      payload: /navigate|跳转/i.test(target)
-        ? { to: target.replace(/^(navigate|跳转)[:：]?\s*/i, "") || "/" }
-        : { patch: target },
-    };
-
-    interactions.push({
-      id: interactionId,
-      name: raw,
-      event,
-      actions: [action],
-    });
-  });
-
-  return interactions;
 }
 
 function applyStyleDirectives(tokens: DesignTokens, directives: string[]): DesignTokens {
@@ -204,25 +102,118 @@ function buildTraces(pages: PageSpec[]): RequirementTrace[] {
   return traces;
 }
 
+function buildReviewReport(pages: PageSpec[], warnings: CompilerWarning[]): CompilerReviewReport {
+  const warningPenalty: Record<string, number> = {
+    NO_INTERACTIONS_DETECTED: 0.2,
+    MIXED_PAGE_INTENT_DOWNGRADED: 0.15,
+    FORM_FIELD_INFERRED_DEFAULT: 0.1,
+    STYLE_PRIMARY_CONFLICT_DOWNGRADED: 0.05,
+    STYLE_BACKGROUND_CONFLICT_DOWNGRADED: 0.05,
+    UNSUPPORTED_STYLE_TOKEN_FORMAT: 0.08,
+  };
+
+  const reasons: string[] = [];
+  let confidence = 1;
+
+  for (const warning of warnings) {
+    const penalty = warningPenalty[warning.code];
+    if (!penalty) continue;
+    confidence -= penalty;
+    reasons.push(warning.message);
+  }
+
+  const pagesWithoutAcceptance = pages.filter((page) => page.acceptanceCriteria.length === 0).length;
+  if (pagesWithoutAcceptance > 0) {
+    confidence -= 0.1;
+    reasons.push(`${pagesWithoutAcceptance} page(s) have no acceptance criteria.`);
+  }
+
+  const pagesWithoutInteractions = pages.filter((page) => page.interactions.length === 0).length;
+  if (pagesWithoutInteractions > 0) {
+    confidence -= 0.05;
+    reasons.push(`${pagesWithoutInteractions} page(s) have no interaction rules.`);
+  }
+
+  const roundedConfidence = Math.max(0, Math.min(1, Number(confidence.toFixed(2))));
+  const needsHumanReview =
+    roundedConfidence < 0.75 ||
+    warnings.some((warning) =>
+      ["MIXED_PAGE_INTENT_DOWNGRADED", "UNSUPPORTED_STYLE_TOKEN_FORMAT"].includes(warning.code)
+    );
+
+  return {
+    confidence: roundedConfidence,
+    needsHumanReview,
+    reasons,
+  };
+}
+
 export function compilePrdToProtoSpec(source: PrdSource): CompilerOutput {
   const document = parsePrdSource(source);
   const normalized = normalizePrdDocument(source, document);
 
-  const warnings: CompilerWarning[] = [];
+  const warnings: CompilerWarning[] = [...resolveGlobalStyleConflicts(normalized.globalStyleDirectives)];
   const baseTokens = applyStyleDirectives(
     DEFAULT_DESIGN_TOKENS,
     [...normalized.globalStyleDirectives, ...normalized.pages.flatMap((page) => page.styleDirectives)]
   );
 
   const pages: PageSpec[] = normalized.pages.map((page, index) => {
-    const pageId = `${source.projectId}_page_${index + 1}_${slugify(page.title)}`;
+    const ruleInferredFields = inferFieldNames(page.requirements);
+    const enrichmentSuggestion = generateEnrichmentSuggestion({
+      pageTitle: page.title,
+      requirements: page.requirements,
+      inferredFields: ruleInferredFields,
+    });
+
+    let inferredFields = [...new Set(ruleInferredFields)];
+    if (enrichmentSuggestion) {
+      const guardedSuggestion = guardEnrichmentSuggestion(enrichmentSuggestion);
+      if (guardedSuggestion.valid) {
+        inferredFields = [...new Set([...inferredFields, ...guardedSuggestion.fields])];
+        warnings.push({
+          code: "ENRICHMENT_FIELDS_APPLIED",
+          message: `Page "${page.title}" applied guarded enrichment fields: ${guardedSuggestion.fields.join(", ")}`,
+        });
+      } else {
+        warnings.push({
+          code: "ENRICHMENT_GUARD_REJECTED",
+          message: `Page "${page.title}" rejected enrichment suggestion: ${guardedSuggestion.reason || "invalid suggestion"}`,
+        });
+      }
+    }
+
+    const baseSignals: PageSemanticSignals = {
+      ...classifyPage(page),
+      inferredFields,
+    };
+    const pageResolution = resolvePageConflicts(page, baseSignals);
+    warnings.push(...pageResolution.warnings);
+    if (pageResolution.errors.length > 0) {
+      throw new PrdCompilerError(
+        PRD_COMPILER_ERROR_CODES.CONSTRAINT_CONFLICT,
+        "Compiler constraints conflict",
+        pageResolution.errors.reduce<Record<string, string>>((acc, conflict, idx) => {
+          acc[`conflict_${idx + 1}`] = `${conflict.path}: ${conflict.message} (${conflict.code})`;
+          return acc;
+        }, {})
+      );
+    }
+
+    const semanticSignals: PageSemanticSignals = {
+      ...baseSignals,
+      template: pageResolution.template,
+    };
+    const pageSlug = slugify(page.title);
+    const pageId = `${source.projectId}_page_${index + 1}_${pageSlug}`;
+
     return {
       id: pageId,
-      slug: slugify(page.title),
+      slug: pageSlug,
       title: page.title,
       summary: page.summary,
-      root: buildRootComponent(page, warnings),
-      interactions: buildInteractions(page),
+      root: buildRootComponent(page, pageSlug, semanticSignals, warnings),
+      interactions: buildInteractions(page, pageSlug),
       acceptanceCriteria:
         page.acceptanceCriteria.length > 0
           ? page.acceptanceCriteria
@@ -236,6 +227,8 @@ export function compilePrdToProtoSpec(source: PrdSource): CompilerOutput {
       message: "No interactions detected from PRD. Generated pages include structure only.",
     });
   }
+
+  const review = buildReviewReport(pages, warnings);
 
   const spec: ProtoSpec = {
     id: `spec_${source.projectId}_${stableHash(source.content)}`,
@@ -262,7 +255,7 @@ export function compilePrdToProtoSpec(source: PrdSource): CompilerOutput {
   const validation = validateProtoSpec(spec);
   if (!validation.valid) {
     throw new PrdCompilerError(
-      "INVALID_PROTO_SPEC",
+      PRD_COMPILER_ERROR_CODES.INVALID_PROTO_SPEC,
       "Compiled ProtoSpec failed validation",
       validation.issues.reduce<Record<string, string>>((acc, issue, idx) => {
         acc[`issue_${idx + 1}`] = `${issue.path}: ${issue.message}`;
@@ -272,5 +265,5 @@ export function compilePrdToProtoSpec(source: PrdSource): CompilerOutput {
   }
 
   spec.quality.validationPassed = true;
-  return { spec, warnings };
+  return { spec, warnings, review };
 }
