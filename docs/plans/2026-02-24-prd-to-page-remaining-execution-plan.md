@@ -3,8 +3,9 @@
 ## 1. 当前基线
 
 - 基线日期: 2026-02-24
-- 已完成: Phase A（契约、编译骨架、任务系统、API、文档）
-- 代码基线: `main` 分支，提交 `7213e47`
+- 已完成: Phase A、Phase B、Phase C、Phase D
+- 进行中: Phase E（Schema/Traceability/Replay gate + CI 阻断已完成）
+- 代码基线: `main` 分支，提交 `ea4680d`
 
 ## 2. 并行推进策略（可多 Agent 同步）
 
@@ -12,7 +13,7 @@
 
 - Stream 1（Compiler 语义）: Phase B 主线，负责 PRD 语义提取、冲突解析、稳定生成。
 - Stream 2（Runtime 渲染）: 先做 Phase C 的渲染器骨架与白名单组件，不依赖完整 B 语义规则。
-- Stream 3（质量与可观测）: 先做 Phase E 的测试框架脚手架与 CI gate 空实现，等待 C/D 接入。
+- Stream 3（质量与可观测）: Phase E 已接入 C/D，继续补齐 Playwright 与视觉回归。
 - Stream 4（追踪与回放）: 先定义 Phase D 的 trace/replay 数据接口，等待 B/C 输出稳定 ID 后接线。
 
 并行约束:
@@ -58,10 +59,11 @@ DoD:
 ### Phase E: 2026-03-30 ~ 2026-04-03
 
 交付:
-- Schema Gate。
-- Playwright 交互回归。
-- 视觉回归（截图基线）。
-- CI 发布阻断。
+- Schema Gate（已完成）。
+- Traceability + Replay Gate（已完成）。
+- CI 发布阻断（已完成）。
+- Playwright 交互回归（待完成）。
+- 视觉回归（截图基线，待完成）。
 
 DoD:
 - 任一 gate 失败时，发布流水线阻断。
@@ -116,4 +118,3 @@ DoD:
 - Day 2: 三类页面提取规则 + 冲突解析 V1。
 - Day 3: confidence + 人工确认点 + 稳定性测试。
 - Day 4: B 阶段收口、文档更新、准备切 C。
-
